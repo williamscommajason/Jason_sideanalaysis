@@ -35,7 +35,7 @@ SUCH DAMAGE.
 
 // DO NOT USE THESE IF THIS CODE GETS INCLUDED IN ANYTHING ELSE. THIS IS ONLY
 // FOR YOUR CONVENIENCE.
-#define N_INPUT_SAMPLES 1000
+#define N_INPUT_SAMPLES 60
 #define FLAC_COMPRESSION_LEVEL 9
 
 static FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   const int32_t *chanmap[1];
 
   // Open the input file with a stream
-  std::fstream fs_in("noise1.txt", std::ios::in);
+  std::fstream fs_in(argv[1], std::ios::in);
   if (!fs_in.good()) { // Check if the file opened okay
   	std::cout << "Error: File 'INSERT_FILENAME_HERE' cannot be opened." << std::endl;
     // Try to close the file anyway, even if it didn't open successfully
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   FLAC__stream_encoder_delete(encoder);
 
 	// Open the output file with a stream
-	std::fstream fs_out("noise.flac", std::ios::out);
+	std::fstream fs_out(argv[2], std::ios::out);
   if (!fs_out.good()) { // Check if the file opened okay
   	std::cout << "Error: File 'INSERT_FILENAME_HERE' cannot be opened." << std::endl;
     // Try to close the file anyway, even if it didn't open successfully
