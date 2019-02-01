@@ -34,9 +34,9 @@ SUCH DAMAGE.
 
 
 // DO NOT USE THESE IF THIS CODE GETS INCLUDED IN ANYTHING ELSE. THIS IS ONLY
-// FOR YOUR CONVENIENCE.
-#define N_INPUT_SAMPLES 60
-#define FLAC_COMPRESSION_LEVEL 9
+// FOR MY CONVENIENCE.
+#define N_INPUT_SAMPLES 1473
+#define FLAC_COMPRESSION_LEVEL 8 
 
 static FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
     const FLAC__StreamEncoder *encoder, const FLAC__byte buffer[], size_t bytes,
@@ -50,24 +50,47 @@ static FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
 }
 
 int main(int argc, char **argv) {
-	std::vector<int32_t> inbuf(N_INPUT_SAMPLES);
+  std::vector<int32_t> inbuf(N_INPUT_SAMPLES);
+  //char inbuf[N_INPUT_SAMPLES];
   std::vector<uint8_t> outbuf;
   const int32_t *chanmap[1];
 
-  // Open the input file with a stream
+  //Open the input file with a stream
   std::fstream fs_in(argv[1], std::ios::in);
   if (!fs_in.good()) { // Check if the file opened okay
   	std::cout << "Error: File 'INSERT_FILENAME_HERE' cannot be opened." << std::endl;
-    // Try to close the file anyway, even if it didn't open successfully
+   // Try to close the file anyway, even if it didn't open successfully
     fs_in.close();
-    return 0;
+
+  /*FILE *fd;
+  int wc = 0, i;
+  
+  
+  fd = fopen(argv[1], "rb");
+  if (fd == NULL)
+  {
+      fprintf(stderr, "Error opening file \n");
+      exit(-2);
+  }  
+  
+  //fread(inbuf, 4, sizeof(inbuf), fd);
+
+  for(int i = 0; i < N_INPUT_SAMPLES; i ++);
+  {
+      printf("%u\n", inbuf[i]);
   }
 
+  fclose(fd);
+  */
   // Populate the input buffer with the data from the file
-  for (size_t i=0; i<inbuf.size(); ++i) fs_in >> inbuf[i];
-
+  for (size_t i=0; i<inbuf.size(); ++i) 
+      {
+      fs_in >> inbuf[i];
+      printf("%i\n", (int)inbuf[i]);
+      }
   // Close the file since we don't need it anymore
   fs_in.close();
+  
 
   // Apply the bitshift filter (NOTE: IF THE DATA IS NORMALIZED TO VALUES OUTSIDE
   // OF THE RANGE REPRESENTABLE BY 24 BITS THIS WILL DESTROY INFO)
@@ -101,7 +124,7 @@ int main(int argc, char **argv) {
     // Try to close the file anyway, even if it didn't open successfully
     fs_out.close();
     return 0;
-}
+    }
 
   // Write the output data stream to file (space-delimimted, change however you see fit)
   for (size_t i=0; i<outbuf.size(); ++i) fs_out << outbuf[i] << " ";
@@ -111,7 +134,8 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
-
 //Covering my ass
 #undef N_INPUT_SAMPLES
 #undef FLAC_COMPRESSION_LEVEL
+
+}
