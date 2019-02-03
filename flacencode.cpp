@@ -35,7 +35,7 @@ SUCH DAMAGE.
 
 // DO NOT USE THESE IF THIS CODE GETS INCLUDED IN ANYTHING ELSE. THIS IS ONLY
 // FOR MY CONVENIENCE.
-#define N_INPUT_SAMPLES 1473
+#define N_INPUT_SAMPLES 600
 #define FLAC_COMPRESSION_LEVEL 8 
 
 static FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
@@ -61,31 +61,14 @@ int main(int argc, char **argv) {
   	std::cout << "Error: File 'INSERT_FILENAME_HERE' cannot be opened." << std::endl;
    // Try to close the file anyway, even if it didn't open successfully
     fs_in.close();
-
-  /*FILE *fd;
-  int wc = 0, i;
-  
-  
-  fd = fopen(argv[1], "rb");
-  if (fd == NULL)
-  {
-      fprintf(stderr, "Error opening file \n");
-      exit(-2);
-  }  
-  
-  //fread(inbuf, 4, sizeof(inbuf), fd);
-
-  for(int i = 0; i < N_INPUT_SAMPLES; i ++);
-  {
-      printf("%u\n", inbuf[i]);
   }
-
-  fclose(fd);
-  */
+  
   // Populate the input buffer with the data from the file
+
+  char* inbuf_cast = reinterpret_cast<char*>(inbuf.data());
+  fs_in.read(inbuf_cast, 2400);
   for (size_t i=0; i<inbuf.size(); ++i) 
       {
-      fs_in >> inbuf[i];
       printf("%i\n", (int)inbuf[i]);
       }
   // Close the file since we don't need it anymore
@@ -94,7 +77,7 @@ int main(int argc, char **argv) {
 
   // Apply the bitshift filter (NOTE: IF THE DATA IS NORMALIZED TO VALUES OUTSIDE
   // OF THE RANGE REPRESENTABLE BY 24 BITS THIS WILL DESTROY INFO)
-  //for (size_t i=0; i<inbuf.size(); ++i) inbuf[i] = ((inbuf[i] & 0x00FFFFFF) << 8) >> 8;
+  for (size_t i=0; i<inbuf.size(); ++i) inbuf[i] = ((inbuf[i] & 0x00FFFFFF) << 8) >> 8;
 
 	// Assign the input data "channel" to the data in inbuf
   chanmap[0] = inbuf.data();
@@ -138,4 +121,4 @@ int main(int argc, char **argv) {
 #undef N_INPUT_SAMPLES
 #undef FLAC_COMPRESSION_LEVEL
 
-}
+
