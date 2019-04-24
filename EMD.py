@@ -589,8 +589,14 @@ class EMD:
         for i in dct_output:
             f = rice_encode.compress(i,f)
         
-        fd = rice_encode.compress(self.error,fd)
-        
+        if np.var(np.diff(self.error)) < np.var(self.error): 
+            derror = [int(x) for x in np.diff(self.error)]
+            derror.insert(0,1)
+            derror.insert(1,self.error[0])
+            fd = rice_encode.compress(derror,fd)
+        else:
+            fd = rice_encode.compress(self.error,fd)
+    
         if f.getbuffer().nbytes > fd.getbuffer().nbytes:
         
             return fd.getbuffer().nbytes, fd
@@ -612,10 +618,14 @@ class EMD:
 
         if len(lists) == 1:
             error = lists[0]
-
+            if error[0] == 1:
+               error.pop(0)
+               for i in range(len(error))[1:]:
+                   error[i] += error[i-1] 
         else:
             error = dct_decode.dct_decode(lists[0],lists[1],lists[2])
-
+        
+        
         r_sig = error + r_err
 
         return [int(round(x)) for x in r_sig]
@@ -635,12 +645,12 @@ if __name__ == "__main__":
     np.set_printoptions(threshold=np.nan) 
 
     #x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
-    x = np.load('timestream1000.npy')
+    x = np.load('timestream1010.npy')
     emd = EMD()
     nbytes, f = emd.save(x)
     recon = emd.load(f)
-    #print(nbytes)
-    #print(np.array(x) - np.array(recon))
+    print(nbytes)
+    print(np.array(x) - np.array(recon))
     #print(len(recon))
         
     
