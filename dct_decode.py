@@ -26,10 +26,10 @@ def dct_decode(dct_error,indices,values):
 
 
     if indices[0] == 1:
-
+        print(indices)
         indices.pop(0)
         for i in range(len(indices))[1:]:
-            indices[i+1] += indices[i]
+            indices[i] += indices[i-1]
 
     else:
         indices.pop(0)

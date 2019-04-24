@@ -7,51 +7,47 @@ def BitString(BitString):
         yield bit
 
 
-def decompress(filename):
+def decompress(f):
 
     
-    with open(filename, "rb") as f:
+    #with open(filename, "rb") as f:
 
-        lists = []
-        eof = False
-        byte = ""
-        while os.path.getsize(filename) > f.tell(): 
+    lists = []
+    byte = ""
+    while f.getbuffer().nbytes > f.tell(): 
 
-            k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
-            size = struct.unpack('@Q',f.read(struct.calcsize('Q')))[0]         
-            bString = ""
+        k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
+        size = struct.unpack('@Q',f.read(struct.calcsize('Q')))[0]         
+        bString = ""
 
-            for i in range(size): 
+        for i in range(size): 
 
-                byte = f.read(1)
-                hexbyte = struct.unpack("@B",byte)[0]
-                binary = "{0:b}".format(hexbyte)
+            byte = f.read(1)
+            hexbyte = struct.unpack("@B",byte)[0]
+            binary = "{0:b}".format(hexbyte)
 
-                if len(binary) < 8:
-                    for i in range(8 - len(binary)):
-                        binary = '0' + binary
+            if len(binary) < 8:
+                for i in range(8 - len(binary)):
+                    binary = '0' + binary
 
-                bString = bString + binary
-                
-                
-           
-             
+            bString = bString + binary
+                             
     
-            codes = decode_bitString(bString,k)
-            rice_dictionary = rice_dict(k,50)
+        codes = decode_bitString(bString,k)
+        rice_dictionary = rice_dict(k,50)
    
-            unsigned = []
+        unsigned = []
     
 
-            for i in codes:
-                if i in rice_dictionary.keys():
-                    unsigned.append(rice_dictionary[i])
-                else:
-                     unsigned.append(decode_rice_byte(i,k))
+        for i in codes:
+            if i in rice_dictionary.keys():
+                unsigned.append(rice_dictionary[i])
+            else:
+                unsigned.append(decode_rice_byte(i,k))
 
-            signed = back_to_signed(unsigned)
+        signed = back_to_signed(unsigned)
 
-            lists.append(signed)    
+        lists.append(signed)    
              
     return lists
             
@@ -199,7 +195,8 @@ def back_to_signed(L):
 
 if __name__ == "__main__":
 
-    signed = decompress('rice.bin')
+    f = open('rice.bin', 'w+b')
+    signed = decompress(f)
     print(rice_dict(2,20))
     
     print(signed)

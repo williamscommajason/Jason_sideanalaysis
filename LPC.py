@@ -213,12 +213,12 @@ class LPC:
         return recon_error
     
     
-    def pack_residual(self,filename):
+    def pack_residual(self,f):
         packed = []
         packed.append(self.gains)
         packed.append(self.fits)
-
-        f = open(filename + '.lpc', 'w+b')
+       
+        
         f.write(struct.pack('@I',self.npts))
         f.write(struct.pack('@I',self.h))
 
@@ -234,17 +234,18 @@ class LPC:
                f.write(struct.pack('@d', x))
         
         
-        f.close()
+        
         return f
     
     @classmethod    
-    def unpack_residual(cls,filename):
-     
-        f = open(filename + ".lpc", 'rb')
+    def unpack_residual(cls,f):
+        
+        f.seek(0)
  
         npts = struct.unpack('@I',f.read(struct.calcsize('I')))[0]
         frame_size = struct.unpack('@I',f.read(struct.calcsize('I')))[0]
         nhops = math.floor(npts/frame_size)
+        
         if npts%frame_size == 0:
             amp = struct.unpack('@d',f.read(struct.calcsize('d')))[0]
             gains = []
@@ -258,19 +259,28 @@ class LPC:
             gains = []
             for i in range(nhops + 1):
                 gains.append(struct.unpack('@d',f.read(struct.calcsize('d')))[0])
-         
+        
+        
         fits = []
+        '''
         while True:
         
             try:
                 fits.append(struct.unpack('@d',f.read(struct.calcsize('d')))[0])
 
             except struct.error:
+                print(fits
                 fits = np.reshape(fits,(len(gains),2))
                 fits = fits.tolist()                     
                 break
+        '''
+        for i in range(2):
+            fits.append(struct.unpack('@d',f.read(struct.calcsize('d')))[0])
 
-        return npts, frame_size, amp, gains, fits   
+        fits = np.reshape(fits,(1,2))
+        fits = fits.tolist()
+        
+        return npts, frame_size, amp, gains, fits, f
        
                 
 

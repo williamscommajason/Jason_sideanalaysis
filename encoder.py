@@ -17,20 +17,21 @@ def encoder():
        
     x = np.load(args.filename)
     emd = run_EMD_encoder(x,len(x))
-    r_err = run_LPC_encoder(emd.residual,args.filename)
+    f = open(args.filename + '.emd.dct', 'w+b')
+    r_err = run_LPC_encoder(emd.residual,f)
     emd.make_lossless(r_err)
-    dct_error,indices,values = dct_encode.dct_encode(emd.error)
+    dct_output = dct_encode.dct_encode(emd.error)
 
-    with open(args.filename + '.emd.dct', 'wb') as f:
-        f = rice_encode.compress(dct_error,f)
-        f = rice_encode.compress(indices, f)
-        f = rice_encode.compress(values,f)
+    for i in dct_output:
+        f = rice_encode.compress(i,f)
+        
     f.close()
     
-    with open(args.filename + '.emd', 'wb') as f:
-        f = rice_encode.compress(emd.error,f)
+    with open(args.filename + '.emd', 'w+b') as fd:
+        fd = rice_encode.compress(emd.error,fd)
 
-    f.close()
+    fd.close()
+
     if os.path.getsize('%s' %args.filename + '.emd') > os.path.getsize(args.filename + '.emd.dct'):
        os.remove(args.filename + '.emd')
        filesize = (os.path.getsize(args.filename + '.emd.dct')) + 40
@@ -46,14 +47,14 @@ def run_EMD_encoder(x,samples):
     emd.emd(x,None)
     return emd
 
-def run_LPC_encoder(residual,filename):
+def run_LPC_encoder(residual,f):
 
     lpc = LPC(2,len(residual),len(residual))
     lpc.lpc_fit(residual)
     lpc.get_fits(lpc.err)
     lpc.get_amp(lpc.err,lpc.h)
-    lpc.pack_residual(filename)
-    npts,frame_width,amp,gains,fits = lpc.unpack_residual(filename)
+    lpc.pack_residual(f)
+    npts,frame_width,amp,gains,fits,f = lpc.unpack_residual(f)
     lpc.recon_err(npts,frame_width,amp,fits)
     r_err = lpc.lpc_synth(lpc.aaa,gains,LPC.r_err,npts,frame_width)
     

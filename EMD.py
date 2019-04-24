@@ -8,7 +8,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from rice_encode import signed_to_unsigned
-
+import rice_decode
+from LPC import LPC
+from io import BytesIO
+import dct_encode
+import dct_decode
 class EMD:
     """
     EMD:
@@ -28,7 +32,7 @@ class EMD:
 
     logger = logging.getLogger(__name__)
 
-    def __init__(self, siglen, spline_kind = 'cubic', **config):
+    def __init__(self,  spline_kind = 'cubic', **config):
         """Initiate EMD as an instance.
 
         Configuration can be passed as config.
@@ -43,7 +47,7 @@ class EMD:
         self.p_resid = 1
         self.alpha = 1
         self.sample_rate = None
-        self.siglen = siglen
+        self.siglen = None
         self.max_iter = math.inf
         self.count = 1
 
@@ -399,15 +403,15 @@ class EMD:
               Residual produced from input signal.
 
         """
+        self.siglen = len(x)
 
-        if t is None and self.siglen != 0: t = np.linspace(0, self.siglen - 1, self.siglen)
+        if t is None and self.siglen == None: t = np.linspace(0, self.siglen - 1, self.siglen)
 
         else: t = np.linspace(0,len(x)-1,len(x))
         self.t = t 
         self.signal = x
         signal = x
         signal = signal.astype('float64')
-        self.siglen = len(x)
         
         pX = np.linalg.norm(x)**2
 
@@ -555,16 +559,66 @@ class EMD:
 
         return [int(round(x)) for x in L]    
 
-    @staticmethod
-    def save(x,filename=None):
+    
+    def save(self,x,filename=None):
 
         f = BytesIO()
-        emd = EMD(len(x))
-        emd.emd(x,t)
-        residual = emd.truncate(emd.get_residual())
-        emd.make_lossless(residual)
+        fd = BytesIO()
+
+        #EMD
+        self.emd(x)
+
+        #LPC
+        lpc = LPC(2,len(self.residual),len(self.residual))
+        lpc.lpc_fit(self.residual)
+        lpc.get_fits(lpc.err)
+        lpc.get_amp(lpc.err,lpc.h)
+        f = lpc.pack_residual(f)
+        fd = lpc.pack_residual(fd)
+        npts, frame_width, amp, gains, fits, f = lpc.unpack_residual(f)
+        lpc.recon_err(npts, frame_width, amp, fits)
+        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
         
         
+        emd.make_lossless(r_err)
+        #DCT
+        dct_output = dct_encode.dct_encode(self.error)
+
+        #Encoding  
+      
+        for i in dct_output:
+            f = rice_encode.compress(i,f)
+        
+        fd = rice_encode.compress(self.error,fd)
+        
+        if f.getbuffer().nbytes > fd.getbuffer().nbytes:
+        
+            return fd.getbuffer().nbytes, fd
+
+        else:
+   
+            return f.getbuffer().nbytes, f
+        
+        
+    def load(self,f):
+
+        npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
+        
+        lpc = LPC(2, frame_width, npts)
+        LPC.recon_err(npts, frame_width, amp, fits)
+        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
+        
+        lists = rice_decode.decompress(f)
+
+        if len(lists) == 1:
+            error = lists[0]
+
+        else:
+            error = dct_decode.dct_decode(lists[0],lists[1],lists[2])
+
+        r_sig = error + r_err
+
+        return [int(round(x)) for x in r_sig]
 
  
 if __name__ == "__main__":
@@ -580,143 +634,15 @@ if __name__ == "__main__":
     from bitstring import BitStream
     np.set_printoptions(threshold=np.nan) 
 
-    alpha = 1.0
-    white_noise_sigma = 1
-    length_ts = 600
-    t = np.linspace(0, length_ts - 1, length_ts)
-    f_knee = 2.0
-    sample_rate = 100.0
-
-    emd = EMD(5700) #5789
-    #emd.siglen = length_ts 
-#    x = simulate.simulate_noise(alpha,white_noise_sigma,length_ts,f_knee,sample_rate)
-#    x = makewav.floatToint24(x)
-    x = np.load('timestream1099.npy')
-    #x = np.fromfile('timestream.bin',dtype=np.int32)
-    #x = np.diff(x)
-    emd = EMD(len(x))
-    t = np.linspace(0,emd.siglen - 1, emd.siglen)
-    newx = np.diff(x)
-    emd.emd(x,t)
-    residual = emd.get_residue()
-    residual = [int(round(x)) for x in residual]
-    io.savemat('signal.mat',{'signal':x})
-    io.savemat('residual.mat',{'residual':residual})
-
-    f = open('timestream10
-    '''
-    emd.to_bin()
-    topenv = np.polyval(emd.p,t)
-    botenv = -topenv
-    fig = plt.figure()
-    plt.plot(t,topenv,t,botenv,t,emd.imfs[0])
-    plt.savefig('polynomial approx to envelopes')
-    imfs = np.zeros(len(residual))
-    for i in emd.imfs:
-        imfs += i
-    imfs = imfs - residual
-    io.savemat('imfs.mat',{'imfs':imfs})
-    io.savemat('imf0.mat',{'imf0':emd.imfs[0]})
-    dsub = io.loadmat('dsub.mat')['dsub'][0]
-    times = io.loadmat('times.mat')['times'][0]
-    maxs = io.loadmat('maxs.mat')['maxs'][0]
-    others = io.loadmat('others.mat')['others'][0]
-    rleyy = io.loadmat('rleyy.mat')['rleyy'][0]
-    maxs = [round(int(x)) for x in maxs]
-    times = [round(int(x)) for x in times] 
-    dsub = [round(int(x)) for x in dsub]
-    rleyy = [round(int(x)) for x in rleyy]
+    #x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
+    x = np.load('timestream1000.npy')
+    emd = EMD()
+    nbytes, f = emd.save(x)
+    recon = emd.load(f)
+    #print(nbytes)
+    #print(np.array(x) - np.array(recon))
+    #print(len(recon))
+        
     
-    imf1 = io.loadmat('rimf.mat')['d']
-    imf1 = imf1[0]
-    io.savemat('imf0.mat',{'y':emd.imfs[0]})
-    io.savemat('imf1.mat',{'y':emd.imfs[1]})
-    #summed = emd.imfs[0] + emd.imfs[1] + emd.imfs[2] + emd.imfs[3] + emd.imfs[4] + emd.imfs[5] + emd.imfs[6] + emd.imfs[7]
-    vr = emd.var_reduce(summed)
-    io.savemat('summed_imf.mat',{'y':summed})
-    s_emd = EMD(len(summed))
-    s_emd.emd(summed,t)
-    s_residual = s_emd.get_residue()
-    print(s_residual)
-    
-    '''
-    imf0 = [int(round(x)) for x in emd.imfs[0]]
-    imf0 = np.diff(imf0)
-    error = emd.make_lossless(residual)
-    emd.envelope_encode()
-    print(len(emd.botenv))
-    derror = np.diff(error)
-    print(emd.error)
-    #derror = [int(round(x/2)) for x in derror]
-    derror = [int(round(x)) for x in derror]
-    
-    '''
-    newemd = EMD(len(emd.rest))
-    newemd.emd(emd.rest)
-    newres = newemd.get_residue()
-    newres = [int(round(x)) for x in newres]
-    newerror = newemd.make_lossless(newres)
-    rice_encode.compress(np.diff(np.diff(newerror)),'newerror.bin')
-    '''
-    #error = [x for x in error]
-    #rice_encode.compress(np.diff(derror),'ddtimestream.bin')
-    #rice_encode.compress(derror,'dtimestream.bin')   
-    #rice_encode.compress(error,'timestream.bin')
-    #rice_encode.compress(np.diff(np.diff(emd.rest)),'rest.bin')
-    #rice_encode.compress(emd.botenv,'botenv.bin')
-    #rice_encode.compress(emd.extrema,'extrema.bin')
-    #io.savemat('summed.mat',{'summed':summed})
-    io.savemat('error.mat',{'error':error})
-    derror = [int(round(x)) for x in derror]
-    
-    a = BitStream().join([BitArray(se=i) for i in derror])
-    print(len(a)/8)
-    for i in emd.yextrema:
-        print(len(i))
-    '''
-    summed = [int(round(x)) for x in summed]
-    vr = [int(round(x)) for x in vr]
-    difference = np.array(summed) - np.array(vr)
-    difference = [int(round(x)) for x in difference]
-    #rice_encode.compress(difference,'rice_summed.bin')
-
-    #rice_encode.compress(vr, 'rice_vr.bin')
-    '''
-    '''
-    rice_encode.compress(error,'rice_error.bin')
-    a = BitStream().join([BitArray(se=i) for i in maxs])
-    b = BitStream().join([BitArray(se=i) for i in times])
-    c = BitStream().join([BitArray(se=i) for i in rleyy])
-    print(len(a)/8)
-    print(len(b)/8)
-    print(len(c)/8)
-    rice_encode.compress(imf0, 'imf.bin')
-    rice_encode.compress(times,'times.bin')
-    rice_encode.compress(maxs,'maxs.bin')
-    rice_encode.compress(dsub,'dsub.bin')
-    rice_encode.compress(others,'others.bin')
-    rice_encode.compress(rleyy,'runlength.bin')
-    #print(emd.var_reduce(emd.imfs[0]))
- 
-    rest = np.zeros(len(x))
-    for i in emd.imfs[1:-2]:
-        rest += i
-    rest = [int(round(x)) for x in rest]
-    print(rest)  
-    rice_encode.compress(rest) 
-    imf1 = np.diff(imf1)
-    imf1 = [int(round(x)) for x in imf1]
-    rice_encode.compress(imf1) 
-    io.savemat('imf1.mat',{'y': emd.imfs[0]})  
-    
-    error = np.array(error) 
-    newemd = EMD(1400)
-    newx = newemd.emd(error,t)
-    new_residual = newemd.get_residue()
-    #print(EMD.monotone(residual))
-    #print(residual)
-    print(newemd.make_lossless(new_residual))
-    np.save('simulated.npy',x)
-    '''
-    
+        
 
